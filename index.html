@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Production Line Digital Twin | Bottleneck Intelligence</title>
+  <meta name="description" content="Real-time production line digital twin with bottleneck detection, what-if simulation, and AI-driven recommendations for smart manufacturing." />
+  <!-- Chart.js via CDN — rest of app works even if this fails -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="optimizer.css" />
+  <link rel="stylesheet" href="rootCauseEngine.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ============================================================
+       TOP BAR
+       ============================================================ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">🏭</div>
+      <div>
+        <h1>FactoryTwin AI</h1>
+        <p>Production Line Digital Twin &amp; Bottleneck Intelligence</p>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <div class="sim-status-badge">
+        <div class="sim-status-dot"></div>
+        <span>Live Simulation</span>
+      </div>
+      <div class="topbar-time mono">
+        Sim Time: <span id="sim-time">00:00</span>
+      </div>
+      <div class="topbar-time" id="topbar-clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <aside class="sidebar">
+    <div class="nav-section-label">Navigation</div>
+
+    <div class="nav-item active" data-tab="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-tab="production">
+      <span class="nav-icon">🏭</span> Production Line
+    </div>
+    <div class="nav-item" data-tab="controls">
+      <span class="nav-icon">🎛️</span> Controls
+    </div>
+    <div class="nav-item" data-tab="recommendations">
+      <span class="nav-icon">🧠</span> AI Insights
+    </div>
+    <div class="nav-item" data-tab="explainability">
+      <span class="nav-icon">📖</span> How It Works
+    </div>
+    <div class="nav-item" data-tab="optimizer">
+      <span class="nav-icon">🤖</span> AI Optimizer
+    </div>
+    <div class="nav-item" data-tab="rootcause">
+      <span class="nav-icon">🔴</span> Root-Cause Engine
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="tick-counter">
+        Tick: <span id="tick-val" class="text-accent">0</span>
+      </div>
+      <div class="tick-counter">
+        Units: <span id="completed-val" class="text-accent">0</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <main class="main-content">
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="production">Production Line</button>
+      <button class="tab-btn" data-tab="controls">Controls</button>
+      <button class="tab-btn" data-tab="recommendations">AI Insights</button>
+      <button class="tab-btn" data-tab="explainability">How It Works</button>
+      <button class="tab-btn" data-tab="optimizer">🤖 AI Optimizer</button>
+      <button class="tab-btn" data-tab="rootcause">🔴 Root-Cause Engine</button>
+    </div>
+
+    <!-- ============================================================
+         TAB: DASHBOARD
+         ============================================================ -->
+    <div class="tab-panel active" id="tab-dashboard">
+
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">📦</div>
+          <div class="stat-body">
+            <div class="stat-label">Total Produced</div>
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-delta up" id="stat-throughput-trend">→ Starting...</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon cyan">⚡</div>
+          <div class="stat-body">
+            <div class="stat-label">Live Throughput</div>
+            <div class="stat-value" id="stat-throughput">0 u/min</div>
+            <div class="stat-delta neutral">60-tick rolling avg</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">📈</div>
+          <div class="stat-body">
+            <div class="stat-label">Line Efficiency</div>
+            <div class="stat-value" id="stat-efficiency">0%</div>
+            <div class="stat-delta neutral">avg stage utilization</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">⚠️</div>
+          <div class="stat-body">
+            <div class="stat-label">Current Bottleneck</div>
+            <div class="stat-value highlight" id="stat-bottleneck">—</div>
+            <div class="stat-delta neutral">highest constraint score</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottleneck callout -->
+      <div class="bottleneck-callout">
+        <div class="bottleneck-header">
+          <div class="bottleneck-icon">⚠️</div>
+          <div>
+            <div class="bottleneck-title">Current Bottleneck Detected</div>
+            <div class="bottleneck-name" id="bn-name">—</div>
+          </div>
+        </div>
+        <div class="bottleneck-reason" id="bn-reason">Collecting data — bottleneck analysis begins after a few ticks.</div>
+        <div class="bottleneck-evidence" id="bn-evidence"></div>
+      </div>
+
+      <!-- Production line (also shown on its own tab) -->
+      <div class="production-line-container">
+        <div class="section-title">
+          🏭 Production Line — Live Digital Twin
+          <span class="badge">Real-time</span>
+        </div>
+        <div class="stage-row" id="stage-row">
+          <!-- Stage cards injected by Renderer.buildStageCards() -->
+        </div>
+      </div>
+
+      <!-- Metrics grid -->
+      <div class="metrics-grid">
+
+        <!-- Throughput -->
+        <div class="metrics-card">
+          <div class="metrics-card-title">⚡ Live Throughput</div>
+          <div class="throughput-big">
+            <div class="throughput-number" id="tp-live-number">0.0</div>
+            <div class="throughput-unit">units / min</div>
+          </div>
+          <div class="throughput-trend flat" id="tp-trend-big">→ Stable</div>
+          <div style="margin-top:14px">
+            <div class="chart-container">
+              <canvas id="throughput-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage Utilization -->
+        <div class="metrics-card">
+          <div class="metrics-card-title">📊 Stage Utilization</div>
+          <div id="util-bars-container">
+            <!-- Built by Renderer.buildUtilBars() -->
+          </div>
+          <div style="margin-top:14px;font-size:0.68rem;color:var(--text-muted)">
+            🟢 &lt;70% Healthy &nbsp; 🟡 70–90% Attention &nbsp; 🔴 &gt;90% Critical
+          </div>
+        </div>
+
+      </div><!-- /metrics-grid -->
+
+    </div><!-- /tab-dashboard -->
+
+    <!-- ============================================================
+         TAB: PRODUCTION LINE (dedicated view)
+         ============================================================ -->
+    <div class="tab-panel" id="tab-production">
+      <div class="section-title" style="margin-bottom:18px">
+        🏭 Production Line — Full View
+        <span class="badge">Digital Twin</span>
+      </div>
+
+      <div class="production-line-container" style="margin-bottom:20px">
+        <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:16px">
+          Each card represents one manufacturing stage. Color = health status. Buffer dots = queued units. Arrow connectors animate when flow is active.
+        </p>
+        <!-- Stage cards from dashboard are shared — this tab shows the same #stage-row clone -->
+        <div style="font-size:0.8rem;color:var(--text-secondary);background:var(--bg-input);border-radius:var(--radius-sm);padding:12px 16px;border-left:3px solid var(--accent)">
+          💡 The production line is shown on the <strong>Dashboard</strong> tab. Switch to Dashboard to see the live animated stage cards with all metrics. Use the <strong>Controls</strong> tab to adjust parameters and observe Theory of Constraints effects in real time.
+        </div>
+      </div>
+
+      <!-- Flow diagram explanation -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-bottom:16px">
+        <div class="section-title">🔄 Discrete-Event Simulation Flow</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px">
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;border-left:3px solid var(--accent)">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--accent);margin-bottom:6px">1 — Source</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary)">Stage 1 (Raw Input) pulls from an infinite virtual source. It never starves. It feeds all downstream stages.</div>
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;border-left:3px solid var(--amber)">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--amber);margin-bottom:6px">2 — Buffer &amp; Backpressure</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary)">Units queue in a buffer between stages. A slow stage causes upstream accumulation (backpressure) and downstream starvation simultaneously.</div>
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;border-left:3px solid var(--green)">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--green);margin-bottom:6px">3 — Theory of Constraints</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary)">System throughput = slowest stage throughput. Effective cycle time = base / capacity. Bottleneck score combines utilization + buffer depth.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Live stage data table -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px">
+        <div class="section-title">📋 Stage State Table (Live)</div>
+        <table class="scenario-table" style="margin-top:0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Stage</th>
+              <th>Status</th>
+              <th>Buffer</th>
+              <th>Utilization</th>
+              <th>Eff. Cycle Time</th>
+              <th>Bottleneck Score</th>
+            </tr>
+          </thead>
+          <tbody id="stage-table-body">
+            <!-- Updated by renderStageTable() on each tick via extra onTick hook -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: CONTROLS
+         ============================================================ -->
+    <div class="tab-panel" id="tab-controls">
+
+      <div class="controls-grid">
+
+        <!-- Left: Stage sliders -->
+        <div class="control-card">
+          <div class="control-card-title">🎛️ Stage Parameters</div>
+          <div id="stage-controls-container">
+            <!-- Built by Renderer.buildControlSliders() -->
+          </div>
+        </div>
+
+        <!-- Right: Global controls -->
+        <div class="control-card">
+          <div class="control-card-title">⚙️ Simulation Controls</div>
+
+          <!-- Pause / Reset -->
+          <div class="action-btn-group">
+            <button class="action-btn primary" id="pause-btn">⏸ Pause</button>
+            <button class="action-btn danger" id="reset-btn">🔄 Reset</button>
+          </div>
+
+          <!-- Simulation speed -->
+          <div style="margin-bottom:14px">
+            <div class="metrics-card-title" style="margin-bottom:8px">⏱ Simulation Speed</div>
+            <div class="speed-control">
+              <button class="speed-btn" onclick="Controls.setSpeed(400, this)">🐢 Slow</button>
+              <button class="speed-btn active" onclick="Controls.setSpeed(200, this)">▶ Normal</button>
+              <button class="speed-btn" onclick="Controls.setSpeed(80, this)">⚡ Fast</button>
+              <button class="speed-btn" onclick="Controls.setSpeed(30, this)">🚀 Max</button>
+            </div>
+          </div>
+
+          <!-- Preset scenarios -->
+          <div class="metrics-card-title" style="margin-bottom:10px">🎬 Preset Scenarios</div>
+          <div class="preset-grid">
+            <button class="preset-btn" onclick="Controls.presetNormal()">
+              <span class="preset-icon">🟢</span>
+              <div class="preset-info">
+                <strong>Normal Shift</strong>
+                <small>All stages at baseline. Observe steady-state Theory of Constraints behavior.</small>
+              </div>
+            </button>
+            <button class="preset-btn" onclick="Controls.presetMachineFailure()">
+              <span class="preset-icon">🔥</span>
+              <div class="preset-info">
+                <strong>Machine Failure</strong>
+                <small>Auto-triggers a 40-tick breakdown on the Welding stage after 4 seconds. Watch upstream queues grow.</small>
+              </div>
+            </button>
+            <button class="preset-btn" onclick="Controls.presetRushOrder()">
+              <span class="preset-icon">🚀</span>
+              <div class="preset-info">
+                <strong>Rush Order</strong>
+                <small>All cycle times cut by 30%. Higher throughput demand reveals the bottleneck under stress.</small>
+              </div>
+            </button>
+          </div>
+
+          <!-- Info box -->
+          <div style="margin-top:16px;padding:12px 14px;background:var(--accent-dim);border:1px solid var(--border-accent);border-radius:var(--radius-sm)">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--accent);margin-bottom:4px">💡 What-If Tip</div>
+            <div style="font-size:0.68rem;color:var(--text-secondary);line-height:1.5">
+              Drag any slider to instantly change a stage's parameters. The simulation responds in real-time. 
+              Check the <strong>AI Insights</strong> tab to see shadow-simulation recommendations update automatically.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: RECOMMENDATIONS (AI Insights)
+         ============================================================ -->
+    <div class="tab-panel" id="tab-recommendations">
+
+      <!-- Recommendation panel -->
+      <div class="recommendation-panel">
+        <div class="rec-header">
+          <div class="rec-title-area">
+            <span style="font-size:1.2rem">🧠</span>
+            <span class="rec-title">Shadow Simulation Recommendations</span>
+            <span class="rec-badge">Auto-updates every 5s</span>
+          </div>
+          <button class="rec-refresh-btn" id="rec-refresh-btn">
+            <span class="rec-icon">↻</span> Refresh Now
+          </button>
+        </div>
+        <div id="rec-content">
+          <div class="shimmer" style="width:60%"></div>
+          <div class="shimmer" style="width:80%"></div>
+          <div class="shimmer" style="width:40%"></div>
+        </div>
+      </div>
+
+      <!-- Explainability of recommendation engine -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px">
+        <div class="section-title" style="margin-bottom:14px">🔍 How the Recommendation Engine Works</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--accent);margin-bottom:8px">Shadow Simulation Process</div>
+            <ol style="font-size:0.7rem;color:var(--text-secondary);padding-left:16px;line-height:1.8">
+              <li>Clone current simulation state (stages, buffers, tick)</li>
+              <li>Apply candidate improvement (e.g., +20% capacity)</li>
+              <li>Fast-forward cloned state for 120 ticks (2 sim-minutes)</li>
+              <li>Measure predicted throughput from shadow run</li>
+              <li>Compare against current live throughput</li>
+              <li>Identify new bottleneck in the improved scenario</li>
+            </ol>
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--amber);margin-bottom:8px">Bottleneck Score Formula</div>
+            <div style="font-family:JetBrains Mono,monospace;font-size:0.68rem;color:var(--text-secondary);line-height:1.8">
+              score = util_norm × 0.5<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ buffer_norm × 0.5<br><br>
+              util_norm = (utilTicks / totalTicks)<br>
+              buffer_norm = bufLen / maxBufLen<br><br>
+              <span style="color:var(--accent)">Stage with highest score = bottleneck</span>
+            </div>
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--green);margin-bottom:8px">3 Candidate Scenarios Evaluated</div>
+            <ul style="font-size:0.7rem;color:var(--text-secondary);padding-left:16px;line-height:1.8">
+              <li><strong>Scenario A:</strong> +20% capacity at current bottleneck</li>
+              <li><strong>Scenario B:</strong> −20% cycle time at bottleneck (process improvement)</li>
+              <li><strong>Scenario C:</strong> +20% capacity at top-2 most-utilized stages</li>
+            </ul>
+            <div style="margin-top:6px;font-size:0.68rem;color:var(--text-muted)">Best predicted throughput gain wins and is shown as primary recommendation.</div>
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--red);margin-bottom:8px">Dynamic Bottleneck Shifting</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+              After each shadow run, the engine identifies what the <em>new</em> bottleneck would be after the proposed fix is applied. This models the Theory of Constraints "drum-buffer-rope" reality: fixing one constraint simply reveals the next one. The panel always reports the predicted successor bottleneck so operators can plan ahead.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /tab-recommendations -->
+
+    <!-- ============================================================
+         TAB: HOW IT WORKS (Explainability for judges)
+         ============================================================ -->
+    <div class="tab-panel" id="tab-explainability">
+
+      <div class="how-it-works">
+        <div class="how-header" id="how-header">
+          <div class="how-header-left">
+            <span>📖</span> How This Digital Twin Works — Full Technical Explainability
+          </div>
+          <span class="how-chevron open" id="how-chevron">▼</span>
+        </div>
+        <div class="how-body open" id="how-body">
+
+          <div class="how-section">
+            <h4>🏗️ Architecture Overview</h4>
+            <p>The application is structured into 4 decoupled modules in <code>script.js</code>:</p>
+            <ul>
+              <li><strong>SimEngine</strong> — pure simulation state machine, zero DOM access. Runs the discrete-event tick loop.</li>
+              <li><strong>Renderer</strong> — reads snapshots from SimEngine, updates the DOM. Never mutates simulation state.</li>
+              <li><strong>Controls</strong> — maps UI events (sliders, buttons) to SimEngine parameter mutations.</li>
+              <li><strong>RecommendationEngine</strong> — runs shadow simulations, scores scenarios, returns plain objects for Renderer to display.</li>
+            </ul>
+          </div>
+
+          <div class="how-section">
+            <h4>⏱ Tick Loop &amp; Timing</h4>
+            <p>A <code>setInterval</code> fires every 200ms (adjustable). Each interval = 1 simulated second. The tick loop processes every stage in two passes:</p>
+            <ul>
+              <li><strong>Pass 1 (reverse order):</strong> Push completed units to the next stage's buffer, or to "completed output" for the last stage. Reverse-order prevents cascading within a single tick.</li>
+              <li><strong>Pass 2 (forward order):</strong> For each idle stage with input available and capacity &gt; 0, dequeue a unit and start processing. Set <code>busyUntilTick = tick + cycleTime / capacity</code>.</li>
+            </ul>
+          </div>
+
+          <div class="how-section">
+            <h4>📏 Bottleneck Detection Logic</h4>
+            <p>Every tick, each stage receives a <em>bottleneck score</em>:</p>
+            <ul>
+              <li><code>utilNorm = utilizationTicks / totalTicks</code> — how busy the stage has been</li>
+              <li><code>bufNorm = bufferLength / maxBufferLength</code> — relative queue depth</li>
+              <li><code>score = utilNorm × 0.5 + bufNorm × 0.5</code> — combines both signals with equal weight</li>
+              <li>Stage with the highest score is labeled the bottleneck and highlighted in red</li>
+            </ul>
+            <p>This dual-signal approach catches both high-utilization bottlenecks (fast machine, overloaded) and buffer-accumulation bottlenecks (slow machine causing upstream backup). The bottleneck label updates every tick — it will shift automatically when conditions change.</p>
+          </div>
+
+          <div class="how-section">
+            <h4>🌊 Theory of Constraints Enforcement</h4>
+            <p>The system naturally enforces ToC without any special check: since each stage can only consume one unit at a time and units flow sequentially, the slowest active stage dictates the maximum downstream flow rate. If you reduce Stage 3's capacity, its effective cycle time rises, its output buffer shrinks, and all later stages enter a "starved" state. Simultaneously, Stage 3's input buffer grows from upstream overproduction.</p>
+          </div>
+
+          <div class="how-section">
+            <h4>🧠 Recommendation Engine (Shadow Simulation)</h4>
+            <p>Every 5 seconds, a background analysis runs:</p>
+            <ul>
+              <li>Deep-clone all stage state (buffers, counters, busy timers)</li>
+              <li>Apply a candidate parameter change (e.g., bottleneck capacity +20%)</li>
+              <li>Run the cloned state forward for 120 ticks entirely in-memory — no UI updates, no side effects</li>
+              <li>Measure resulting throughput from the shadow run</li>
+              <li>Compare all 3 candidate scenarios; display the highest-gain option as the recommendation</li>
+              <li>Identify what the new bottleneck would be in the improved scenario</li>
+            </ul>
+            <p>All numbers shown (before/after throughput, % improvement, new bottleneck utilization) are derived from these shadow simulation runs — not guesses or heuristics.</p>
+          </div>
+
+          <div class="how-section">
+            <h4>📊 Metrics Computed</h4>
+            <ul>
+              <li><strong>Throughput:</strong> units completed in last 60-tick window × (60/windowSize) = units/min</li>
+              <li><strong>Utilization %:</strong> (utilizationTicks / totalTicks) × 100</li>
+              <li><strong>Buffer length:</strong> current queue size (count of waiting units)</li>
+              <li><strong>Starved time:</strong> ticks where stage had no input</li>
+              <li><strong>Blocked time:</strong> ticks where downstream buffer exceeded 20 units</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Code snippet for judges -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-top:16px">
+        <div class="section-title">🔬 Key Equations</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;font-family:JetBrains Mono,monospace;font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+            <div style="color:var(--accent);font-weight:700;margin-bottom:6px">Effective Cycle Time</div>
+            effectiveCT = cycleTime / capacity<br>
+            e.g. 9s / 0.5 capacity = 18s/unit<br><br>
+            busyUntilTick = currentTick + effectiveCT
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;font-family:JetBrains Mono,monospace;font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+            <div style="color:var(--amber);font-weight:700;margin-bottom:6px">Throughput (units/min)</div>
+            windowUnits = completed[now] - completed[now-60]<br>
+            tpPerMin = (windowUnits / windowTicks) × 60<br><br>
+            1 tick = 1 sim-second → 60 ticks = 1 sim-min
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;font-family:JetBrains Mono,monospace;font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+            <div style="color:var(--green);font-weight:700;margin-bottom:6px">Bottleneck Score</div>
+            utilNorm = utilizationTicks / totalTicks<br>
+            bufNorm  = bufferLen / maxBufferLen<br>
+            score    = utilNorm×0.5 + bufNorm×0.5
+          </div>
+
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:14px;font-family:JetBrains Mono,monospace;font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+            <div style="color:var(--red);font-weight:700;margin-bottom:6px">Shadow Simulation TP</div>
+            shadowRun(overrides, N=120 ticks)<br>
+            newUnits = shadowCompleted - liveCompleted<br>
+            shadowTP = (newUnits / N) × 60 u/min
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /tab-explainability -->
+
+
+    <!-- ============================================================
+         TAB: AI WHAT-IF OPTIMIZER (new isolated panel)
+         ============================================================ -->
+    <div class="tab-panel" id="tab-optimizer">
+
+      <!-- Current factory snapshot -->
+      <div id="opt-summary-bar" class="opt-summary-bar">
+        <div class="opt-summary-card"><div class="opt-summary-icon">&#x26A1;</div><div><div class="opt-summary-label">Throughput</div><div class="opt-summary-value opt-val-cyan">&mdash;</div></div></div>
+        <div class="opt-summary-card"><div class="opt-summary-icon">&#x26A0;&#xFE0F;</div><div><div class="opt-summary-label">Bottleneck</div><div class="opt-summary-value opt-val-amber">&mdash;</div></div></div>
+        <div class="opt-summary-card"><div class="opt-summary-icon">&#x1F4CA;</div><div><div class="opt-summary-label">Avg Utilization</div><div class="opt-summary-value">&mdash;</div></div></div>
+        <div class="opt-summary-card"><div class="opt-summary-icon">&#x1F4E6;</div><div><div class="opt-summary-label">Total Buffer Queue</div><div class="opt-summary-value">&mdash;</div></div></div>
+      </div>
+
+      <!-- Trigger button -->
+      <div class="opt-trigger-wrap">
+        <button class="opt-run-btn" id="opt-run-btn" onclick="WhatIfOptimizer.runOptimize()">
+          <span class="opt-btn-icon">&#x26A1;</span> Optimize Factory
+        </button>
+        <div class="opt-trigger-hint">
+          Automatically generates 5 improvement scenarios, runs shadow simulations for each,
+          compares results, and produces an AI recommendation &mdash; all from live factory data.
+        </div>
+      </div>
+
+      <!-- Scenario cards (hidden until first run) -->
+      <div id="opt-scenarios-section" style="display:none">
+        <div class="opt-section-header">&#x2699; Generated Scenarios</div>
+        <div id="opt-scenarios-grid" class="opt-scenarios-grid">
+          <div class="opt-empty-state"><div class="opt-empty-icon">&#x1F50D;</div>Click &ldquo;Optimize Factory&rdquo; to generate scenarios.</div>
+        </div>
+      </div>
+
+      <!-- Comparison table (hidden until first run) -->
+      <div id="opt-table-section" style="display:none">
+        <div class="opt-section-header">&#x1F4CB; Scenario Comparison</div>
+        <div id="opt-table-wrap" class="opt-table-wrap">
+          <div class="opt-empty-state">Run the optimizer to generate comparison data.</div>
+        </div>
+      </div>
+
+      <!-- AI Recommendation (hidden until first run) -->
+      <div id="opt-ai-section" style="display:none">
+        <div class="opt-section-header">&#x1F916; AI Insight</div>
+        <div class="opt-ai-block" id="opt-ai-block">
+          <div class="opt-empty-state">
+            <div class="opt-loading-dots"><span></span><span></span><span></span></div>
+            <div style="margin-top:8px">Waiting for optimizer run&hellip;</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual What-If Panel -->
+      <div class="opt-section-header" style="margin-top:8px">&#x1F39B; Manual What-If Simulation</div>
+      <div class="opt-manual-panel">
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">
+          Manually adjust any stage parameter and instantly see the predicted impact.
+        </div>
+        <div class="opt-manual-grid">
+          <div>
+            <div class="opt-field-label">Stage</div>
+            <select class="opt-select" id="opt-manual-stage">
+              <!-- Populated by WhatIfOptimizer._populateManualStageSelect() -->
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <div class="opt-field-label">New Capacity (%)</div>
+              <input class="opt-number-input" id="opt-manual-capacity" type="number" min="0" max="200" step="5" value="100" />
+            </div>
+            <div>
+              <div class="opt-field-label">Cycle Time (s)</div>
+              <input class="opt-number-input" id="opt-manual-ct" type="number" min="1" max="60" step="1" value="6" />
+            </div>
+          </div>
+          <div>
+            <div class="opt-field-label">&nbsp;</div>
+            <button class="opt-manual-run-btn" onclick="WhatIfOptimizer.runManual()">&#x25B6; Run Simulation</button>
+          </div>
+        </div>
+        <div class="opt-manual-result" id="opt-manual-result"></div>
+      </div>
+
+      <!-- Scenario Detail Modal Popup -->
+      <div id="opt-modal-backdrop" class="opt-modal-backdrop" onclick="WhatIfOptimizer.closeModal(event)">
+        <div class="opt-modal" id="opt-modal-dialog" onclick="event.stopPropagation()">
+          <!-- Populated dynamically by WhatIfOptimizer.showScenarioDetail() -->
+        </div>
+      </div>
+
+    </div><!-- /tab-optimizer -->
+
+
+    <!-- ============================================================
+         TAB: BOTTLENECK ROOT-CAUSE ENGINE (Isolated panel)
+         ============================================================ -->
+    <div class="tab-panel" id="tab-rootcause">
+
+      <!-- Top Header & Banner -->
+      <div class="rc-header-bar">
+        <div class="rc-header-title-wrap">
+          <div class="rc-header-icon">🔴</div>
+          <div>
+            <div class="rc-header-title">Bottleneck Root-Cause Engine</div>
+            <div class="rc-header-subtitle">Deterministic causal decomposition, constraint derivation &amp; downstream impact analysis</div>
+          </div>
+        </div>
+        <div class="rc-header-actions">
+          <button class="rc-why-main-btn" onclick="RootCauseEngine.showWhyModal()">
+            <span>❓</span> WHY IS THIS A BOTTLENECK?
+          </button>
+          <button class="rc-refresh-btn" onclick="RootCauseEngine.refresh()">
+            <span>↻</span> Refresh Analysis
+          </button>
+        </div>
+      </div>
+
+      <div id="rc-main-container">
+        <!-- Spotlight Card -->
+        <div id="rc-spotlight-mount"></div>
+
+        <!-- Two-Column: Causes & Contribution Scores -->
+        <div class="rc-analysis-grid">
+          <div class="rc-panel">
+            <div class="rc-panel-header">🔍 Causal Breakdown</div>
+            <div id="rc-causes-mount"></div>
+          </div>
+          <div class="rc-panel">
+            <div class="rc-panel-header">📊 Factor Contribution Score</div>
+            <div id="rc-scores-mount"></div>
+          </div>
+        </div>
+
+        <!-- Causal Chain Flow -->
+        <div class="rc-chain-card">
+          <div class="rc-panel-header">🔗 Causal Propagation Chain</div>
+          <div id="rc-chain-mount"></div>
+        </div>
+
+        <!-- Production Impact Metrics -->
+        <div class="rc-panel-header">📉 Production &amp; Downstream Impact</div>
+        <div class="rc-impact-grid" id="rc-impact-mount"></div>
+
+        <!-- Machine Comparison Matrix -->
+        <div class="rc-table-card">
+          <div class="rc-panel-header">🏭 Factory-Wide Machine Constraint Matrix</div>
+          <div id="rc-table-mount"></div>
+        </div>
+
+        <!-- Two-Column: Ranking & Actions -->
+        <div class="rc-actions-grid">
+          <div class="rc-panel">
+            <div class="rc-panel-header">📋 Technical Constraint Ranking</div>
+            <div id="rc-ranking-mount"></div>
+          </div>
+          <div class="rc-panel">
+            <div class="rc-panel-header">💡 Recommended Corrective Actions</div>
+            <div id="rc-actions-mount"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive "WHY IS THIS A BOTTLENECK?" Modal Popup -->
+      <div id="rc-modal-backdrop" class="rc-modal-backdrop" onclick="RootCauseEngine.closeWhyModal(event)">
+        <div class="rc-modal" id="rc-modal-dialog" onclick="event.stopPropagation()">
+          <!-- Populated dynamically by RootCauseEngine.showWhyModal() -->
+        </div>
+      </div>
+
+    </div><!-- /tab-rootcause -->
+
+  </main><!-- /main-content -->
+
+
+</div><!-- /app-shell -->
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script src="script.js"></script>
+<script src="optimizer.js"></script>
+<script src="rootCauseEngine.js"></script>
+
+
+<!-- Extra: Live stage table update on production tab -->
+<script>
+  // Register a second tick hook to update the stage table (production tab)
+  SimEngine.onTick(function(snap) {
+    var tbody = document.getElementById('stage-table-body');
+    if (!tbody) return;
+    var html = '';
+    snap.stages.forEach(function(s, i) {
+      var util = s.utilization.toFixed(1);
+      var color = s.utilization >= 90 ? 'var(--red)' : s.utilization >= 70 ? 'var(--amber)' : 'var(--green)';
+      var eff = s.capacity > 0 ? (s.cycleTime / s.capacity).toFixed(1) + 's' : '∞';
+      var score = (s.bottleneckScore * 100).toFixed(0);
+      html += '<tr' + (s.isBottleneck ? ' style="background:rgba(239,68,68,0.06)"' : '') + '>' +
+        '<td style="color:var(--text-muted)">' + (i + 1) + '</td>' +
+        '<td class="td-name">' + s.icon + ' ' + s.name + (s.isBottleneck ? ' 🔴' : '') + '</td>' +
+        '<td style="color:' + color + ';font-weight:700">' + s.status + (s.breakdown ? ' ⚠' : '') + '</td>' +
+        '<td class="mono" style="color:' + (s.buffer > 10 ? 'var(--red)' : 'var(--text-secondary)') + '">' + s.buffer + '</td>' +
+        '<td style="color:' + color + ';font-family:JetBrains Mono,monospace;font-weight:700">' + util + '%</td>' +
+        '<td class="mono">' + eff + '</td>' +
+        '<td class="mono" style="color:' + color + '">' + score + '</td>' +
+      '</tr>';
+    });
+    tbody.innerHTML = html;
+  });
+</script>
+
+</body>
+</html>
